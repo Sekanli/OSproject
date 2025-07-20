@@ -1,0 +1,60 @@
+Begin Data Section
+# ─────── Registers (0–3) ───────
+0    0      # [0]  PC (set by OS)
+1    0      # [1]  SP (set by OS)
+2    0      # [2]  SYSCALL result (unused here)
+3    0      # [3]  Instruction count
+
+# ─────── User data (all ≥1000) ───────
+1100  3      # arr length (not used below)
+1101  52     # arr[0]
+1102  56     # arr[1]
+1103  45     # arr[2]
+
+1104  0      # temp (for subtraction)
+1105  0      # hold (for swapping)
+End Data Section
+
+Begin Instruction Section
+# ─────────────────────────────────────────────────────────────────────────────────
+#   OS (kernel mode) at 0–2:
+# ─────────────────────────────────────────────────────────────────────────────────
+0    SET    1800   1      # SP ← 1800
+1    USER   1000         # switch to user mode, set PC=1000
+2    HLT                 # when user does SYSCALL HLT, return here → HALT
+
+# ─────────────────────────────────────────────────────────────────────────────────
+#   Thread 1 (at 1000): 3‐element sort + 3 prints + SYSCALL HLT
+# ─────────────────────────────────────────────────────────────────────────────────
+
+# — Compare arr[0] vs arr[1]:
+1000  CPY    1101   1105   # hold ← arr[0]
+1001  CPY    1105   1104   # temp ← hold (i.e. arr[0])
+1002  SUBI   1104   1102   # temp ← arr[0] – arr[1]
+1003  JIF    1104   1006   # if (arr[0]–arr[1] ≤ 0) → skip to 1006
+1004  CPY    1102   1101   # swap: arr[0] ← arr[1]
+1005  CPY    1105   1102   # swap: arr[1] ← hold
+
+# — Compare arr[0] vs arr[2]:  (starts at 1006, no gap)
+1006  CPY    1101   1105   # hold ← arr[0]
+1007  CPY    1105   1104   # temp ← hold (i.e. arr[0])
+1008  SUBI   1104   1103   # temp ← arr[0] – arr[2]
+1009  JIF    1104   1012   # if (≤ 0) → skip to 1012
+1010  CPY    1103   1101   # swap: arr[0] ← arr[2]
+1011  CPY    1105   1103   # swap: arr[2] ← hold
+
+# — Compare arr[1] vs arr[2]:  (now begins at 1012, contiguous)
+1012  CPY    1102   1105   # hold ← arr[1]
+1013  CPY    1105   1104   # temp ← hold (i.e. arr[1])
+1014  SUBI   1104   1103   # temp ← arr[1] – arr[2]
+1015  JIF    1104   1018   # if (≤ 0) → skip to 1018
+1016  CPY    1103   1102   # swap: arr[1] ← arr[2]
+1017  CPY    1105   1103   # swap: arr[2] ← hold
+
+# — Print final sorted values + thread exit:
+1018  SYSCALL  PRN   1101   # print arr[0]
+1019  SYSCALL  PRN   1102   # print arr[1]
+1020  SYSCALL  PRN   1103   # print arr[2]
+1021  SYSCALL  HLT          # return to OS (go to PC=2) → OS does HLT
+
+End Instruction Section

@@ -1,0 +1,159 @@
+Begin Data Section
+# ─────────────────────────────────────────────────────────────────────────
+#  0–3  : CPU "special" registers
+#         [0] = PC, [1] = SP, [2] = SYSCALL result, [3] = INSTR_COUNT
+0     0       # PC
+1     0       # SP
+2     0       # SYSCALL result
+3     0       # INSTR_COUNT
+
+# Thread table (addresses 21..29), each entry = (state, pc, sp)
+21    0       # thread1.state (0=ready)
+22    1000    # thread1.pc
+23    1800    # thread1.sp
+24    0       # thread2.state
+25    2000    # thread2.pc
+26    2800    # thread2.sp
+27    0       # thread3.state
+28    3000    # thread3.pc
+29    3800    # thread3.sp
+
+30    0       # temp (for dispatcher)
+
+# Thread #1 data (1100..1105): sort 3 elements
+1100  3       # N
+1101  5       # arr[0]
+1102  2       # arr[1]
+1103  7       # arr[2]
+1104  0       # temp
+1105  0       # hold
+
+# Thread #2 data (2000..2007): linear search for key
+2000  3       # N
+2001  56      # key
+2002  75      # arr[0]
+2003  56      # arr[1]
+2004  100     # arr[2]
+2005  0       # found_index
+2006  0       # temp
+2007  0       # unused
+
+# Thread #3 data (3000..3002): print "42" three times
+3000  3       # loop_count
+3001  0       # counter
+3002  0       # unused
+
+End Data Section
+
+Begin Instruction Section
+# ─────────────────────────────────────────────────────────────────────────
+# OS kernel initialization (PC = 0..9)
+0     SET    800    1     # SP ← 800
+1     SET      0   21    # thread1.state = ready
+2     SET   1000   22    # thread1.pc
+3     SET   1800   23    # thread1.sp
+4     SET      0   24    # thread2.state = ready
+5     SET   2000   25    # thread2.pc
+6     SET   2800   26    # thread2.sp
+7     SET      0   27    # thread3.state = ready
+8     SET   3000   28    # thread3.pc
+9     SET   3800   29    # thread3.sp
+
+# Dispatcher (PC = 10..16)
+10    CPY     21    30    # temp = thread1.state
+11    JIF     30    17    # if ready → launch1
+12    CPY     24    30    # temp = thread2.state
+13    JIF     30    22    # if ready → launch2
+14    CPY     27    30    # temp = thread3.state
+15    JIF     30    27    # if ready → launch3
+16    HLT                 # no ready threads → halt OS
+
+# launch1 (PC = 17..20)
+17    SET      1   21    # thread1.state = running
+18    USER   1000         # switch to user thread1
+19    SET      2   21    # thread1.state = terminated
+20    JIF      0   10    # jump back to dispatcher
+
+# launch2 (PC = 21..24)
+21    SET      1   24    # thread2.state = running
+22    USER   2000         # switch to user thread2
+23    SET      2   24    # thread2.state = terminated
+24    JIF      0   10    # jump back to dispatcher
+
+# launch3 (PC = 25..28)
+25    SET      1   27    # thread3.state = running
+26    USER   3000         # switch to user thread3
+27    SET      2   27    # thread3.state = terminated
+28    JIF      0   10    # jump back to dispatcher
+29    HLT                 # filler
+
+# Thread #1 code (PC = 1000..1023): sort 3 elements
+1000  CPY   1101  1105    # hold ← arr[0]
+1001  CPY   1105  1104    # temp ← hold
+1002  SUBI  1104  1102    # temp = arr[0] – arr[1]
+1003  JIF   1104  1006    # if arr[0] ≤ arr[1], skip
+1004  CPY   1102  1101    # swap arr[0] and arr[1]
+1005  CPY   1105  1102
+1006  CPY   1101  1105    # hold ← arr[0]
+1007  CPY   1105  1104    # temp ← hold
+1008  SUBI  1104  1103    # temp = arr[0] – arr[2]
+1009  JIF   1104  1012    # if arr[0] ≤ arr[2], skip
+1010  CPY   1103  1101    # swap arr[0] and arr[2]
+1011  CPY   1105  1103
+1012  CPY   1102  1105    # hold ← arr[1]
+1013  CPY   1105  1104    # temp ← hold
+1014  SUBI  1104  1103    # temp = arr[1] – arr[2]
+1015  JIF   1104  1018    # if arr[1] ≤ arr[2], skip
+1016  CPY   1103  1102    # swap arr[1] and arr[2]
+1017  CPY   1105  1103
+1018  SYSCALL PRN 1101    # print arr[0]
+1019  SYSCALL PRN 1102    # print arr[1]
+
+1020  SYSCALL YIELD    # print arr[2]
+1021  SYSCALL HLT         # terminate thread1
+1022  HLT
+1023  HLT
+
+# Thread #2 code (PC = 2000..2032): linear search
+2000  CPY   2000  2006    # temp ← N
+2001  CPY   2001  2007    # hold ← key
+2002  SET      0  2005    # found_index = 0
+2003  SET      0  2010    # i = 0
+2004  CPY   2000  2011    # temp2 ← N
+2005  SUBI  2011  2010    # temp2 = N – i
+2006  JIF   2011  2025    # if end, not found
+2007  CPY   2010  2012    # addr = i + base
+2008  ADD    2012  2002   # addr_of_arr = i + 2002
+2009  CPYI  2012  2013    # val = arr[i]
+2010  CPY   2013  2014    # compare_val = arr[i]
+2011  SUBI  2014  2001    # compare_val – key
+2012  JIF   2014  2020    # if equal → record index
+2013  ADD    2010  1      # i++
+2014  SET      0  2015    # dummy for jump
+2015  JIF   2015  2004    # loop back
+2016  HLT
+2020  CPY   2010  2005    # found_index = i
+2021  SET      0  2015    # dummy
+2022  JIF   2015  2030    # goto print
+2025  SET     -1  2005    # index_not_found
+2026  SET      0  2015    # dummy
+2027  JIF   2015  2030    # goto print
+2030  SYSCALL PRN 2005    # print(found_index)
+2031  SYSCALL HLT        # terminate thread2
+2032  HLT
+
+# Thread #3 code (PC = 3000..3010): print "42"
+3000  CPY   3000  3003    # temp_loop = loop_count
+3001  CPY   3001  3004    # counter = counter
+3002  CPY   3003  3005    # temp2 = loop_count
+3003  SUBI  3005  3004    # temp2 = loop_count – counter
+3004  JIF   3005  3010    # if zero → exit
+3005  SET     42  3006    # val = 42
+3006  SYSCALL PRN 3006    # print(42)
+3007  ADD    3004  1      # counter++
+3008  SET      0  3009    # dummy
+3009  JIF   3009  3002    # loop back
+3010  SYSCALL HLT        # terminate thread3
+3011  HLT
+3012  HLT
+End Instruction Section

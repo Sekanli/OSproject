@@ -1,0 +1,21 @@
+Begin Data Section
+0   0
+1   0
+2   0
+3   0
+4   0
+5   0
+… 
+255 0
+End Data Section
+
+Begin Instruction Section
+0 SET 10 50
+1 SET 0 51
+2 ADDI 50 51
+3 ADD 50 -1
+4 JIF 50 7
+5 SYSCALL PRN 51
+6 SET 2 0
+7 HLT
+End Instruction Section
