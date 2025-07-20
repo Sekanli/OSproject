@@ -1,0 +1,385 @@
+# os.gtu — Full GTU-C312 OS + Threads (copy-paste ready)
+
+Begin Data Section
+# ─────────────────────────────────────────────────────────────────────────
+#  0–3  : CPU "special" registers
+#         [0] = PC, [1] = SP, [2] = SYSCALL result, [3] = INSTR_COUNT
+0     0       # PC
+1     0       # SP
+2     0       # SYSCALL result
+3     0       # INSTR_COUNT
+
+# Thread table (6 words per entry, addresses 21..86):
+#   [ tid | start_time | used_instrs | state | pc     | sp    ]
+
+21     0       # tid = 0 (OS)
+22     0       # start_time = 0
+23     0       # used_instrs = 0
+24     1       # state = running
+25     0       # pc = 0
+26     800     # sp = 800
+
+27     1       # tid = 1
+28     0       # start_time
+29     0       # used_instrs
+30     0       # state = ready
+31     1000    # pc
+32     1800    # sp
+
+33     2       # tid = 2
+34     0
+35     0
+36     0
+37     2000
+38     2800
+
+39     3
+40     0
+41     0
+42     0
+43     3000
+44     3800
+
+45     4
+46     0
+47     0
+48     0
+49     4000
+50     4800
+
+51     5
+52     0
+53     0
+54     0
+55     5000
+56     5800
+
+57     6
+58     0
+59     0
+60     0
+61     6000
+62     6800
+
+63     7
+64     0
+65     0
+66     0
+67     7000
+68     7800
+
+69     8
+70     0
+71     0
+72     0
+73     8000
+74     8800
+
+75     9
+76     0
+77     0
+78     0
+79     9000
+80     9800
+
+81     10
+82     0
+83     0
+84     0
+85     10000
+86     10800
+
+
+87     0   # block_counter for tid 0 (OS)
+88     0   # block_counter for tid 1
+89     0   # block_counter for tid 2
+90     0   # block_counter for tid 3
+91     0   # block_counter for tid 4
+92     0   # block_counter for tid 5
+93     0   # block_counter for tid 6
+94     0   # block_counter for tid 7
+95     0   # block_counter for tid 8
+96     0   # block_counter for tid 9
+97     0   # block_counter for tid 10
+
+
+
+# Thread #1 data (1100..1105): sort 3 elements
+1100  3
+1101  5
+1102  2
+1103  7
+1104  0
+1105  0
+
+# Thread #2 data (2000..2007): linear search
+2000  3  #no of elements
+2001  100 #key to search
+2002  75 #a[0]
+2003  56    #a[1]
+2004  100   #a{2}
+2005  0
+2006  0
+2007  0
+
+# Thread #3 data (3000..3002): print “42”
+3000  3  #loop count
+3001  0
+3002  0
+
+# Stub code space for threads 4–10
+4000  0
+5000  0
+6000  0
+7000  0
+8000  0
+9000  0
+10000 0
+
+End Data Section
+
+Begin Instruction Section
+# ─────────────────────────────────────────────────────────────────────────
+# OS kernel init (PC = 0..14)
+0     SET    800    1
+1     SET      0   21
+2     SET      0   22
+3     SET      0   23
+4     SET      1   24
+
+5     SET      0   27
+6     SET   1000   28
+7     SET   1800   29
+
+8     SET      0   33
+9     SET   2000   34
+10    SET   2800   35
+
+11    SET      0   39
+12    SET   3000   40
+13    SET   3800   41
+
+14    SET      0   45
+15    SET   4000   46
+16    SET   4800   47
+
+17    SET      0   51
+18    SET   5000   52
+19    SET   5800   53
+
+20    SET      0   57
+21    SET   6000   58
+22    SET   6800   59
+
+23    SET      0   63
+24    SET   7000   64
+25    SET   7800   65
+
+26    SET      0   69
+27    SET   8000   70
+28    SET   8800   71
+
+29    SET      0   75
+30    SET   9000   76
+31    SET   9800   77
+
+32    SET      0   81
+33    SET  10000   82
+34    SET  10800   83
+
+# Updated Dispatcher (PC = 35..55)
+35    CPY    30   30    # temp = thread1.state
+36    JIF    30   56    # if ready → launch thread1 @56
+
+37    CPY    33   30    # temp = thread2.state
+38    JIF    30   62    # if ready → launch thread2 @62
+
+39    CPY    39   30    # temp = thread3.state
+40    JIF    30   68    # if ready → launch thread3 @68
+
+41    CPY    45   30    # temp = thread4.state
+42    JIF    30   74    # if ready → launch thread4 @74
+
+43    CPY    51   30    # temp = thread5.state
+44    JIF    30   80    # if ready → launch thread5 @80
+
+45    CPY    57   30    # temp = thread6.state
+46    JIF    30   86    # if ready → launch thread6 @86
+
+47    CPY    63   30    # temp = thread7.state
+48    JIF    30   92    # if ready → launch thread7 @92
+
+49    CPY    69   30    # temp = thread8.state
+50    JIF    30   98    # if ready → launch thread8 @98
+
+51    CPY    75   30    # temp = thread9.state
+52    JIF    30  104    # if ready → launch thread9 @104
+
+53    CPY    81   30    # temp = thread10.state
+54    JIF    30  110    # if ready → launch thread10 @110
+
+55    HLT                 # no ready user threads → halt
+
+
+
+
+# launch Thread #1 (PC = 56..61)
+56    SET     1    30      # thread1.state = running
+57    USER  1000          # switch to thread1
+58    SET     0    30      # clear running → ready
+59    JIF    30    35      # if yielded again, back to dispatcher
+60    SET     2    30      # thread1.state = terminated
+61    JIF     0    35      # back to dispatcher
+
+# launch Thread #2 (PC = 62..67)
+62    SET     1    36
+63    USER  2000
+64    SET     0    36
+65    JIF    36    35
+66    SET     2    36
+67    JIF     0    35
+
+# launch Thread #3 (PC = 68..73)
+68    SET     1    42
+69    USER  3000
+70    SET     0    42
+71    JIF    42    35
+72    SET     2    42
+73    JIF     0    35
+
+# launch Thread #4 (PC = 74..79)
+74    SET     1    48
+75    USER  4000
+76    SET     0    48
+77    JIF    48    35
+78    SET     2    48
+79    JIF     0    35
+
+# launch Thread #5 (PC = 80..85)
+80    SET     1    54
+81    USER  5000
+82    SET     0    54
+83    JIF    54    35
+84    SET     2    54
+85    JIF     0    35
+
+# launch Thread #6 (PC = 86..91)
+86    SET     1    60
+87    USER  6000
+88    SET     0    60
+89    JIF    60    35
+90    SET     2    60
+91    JIF     0    35
+
+# launch Thread #7 (PC = 92..97)
+92    SET     1    66
+93    USER  7000
+94    SET     0    66
+95    JIF    66    35
+96    SET     2    66
+97    JIF     0    35
+
+# launch Thread #8 (PC = 98..103)
+98    SET     1    72
+99    USER  8000
+100   SET     0    72
+101   JIF    72    35
+102   SET     2    72
+103   JIF     0    35
+
+# launch Thread #9 (PC = 104..109)
+104   SET     1    78
+105   USER  9000
+106   SET     0    78
+107   JIF    78    35
+108   SET     2    78
+109   JIF     0    35
+
+# launch Thread #10 (PC = 110..115)
+110   SET     1    84
+111   USER 10000
+112   SET     0    84
+113   JIF    84    35
+114   SET     2    84
+115   JIF     0    35
+
+
+
+# Thread #1 code (1000..1023)
+1000  CPY   1101  1105
+1001  CPY   1105  1104
+1002  SUBI  1104  1102
+1003  JIF   1104  1006
+1004  CPY   1102  1101
+1005  CPY   1105  1102
+1006  CPY   1101  1105
+1007  CPY   1105  1104
+1008  SUBI  1104  1103
+1009  JIF   1104  1012
+1010  CPY   1103  1101
+1011  CPY   1105  1103
+1012  CPY   1102  1105
+1013  CPY   1105  1104
+1014  SUBI  1104  1103
+1015  JIF   1104  1018
+1016  CPY   1103  1102
+1017  CPY   1105  1103
+1018  SYSCALL YIELD
+1019  SYSCALL PRN 1101
+1020  SYSCALL PRN 1102
+1021  SYSCALL PRN 1103
+1022  SYSCALL HLT
+1023  HLT
+
+# Thread #2 code (2000..2032)
+2000  CPY   2000  2006
+2001  CPY   2001  2007
+2002  SET      0  2005
+2003  SET      0  2010
+2004  CPY   2000  2011
+2005  SUBI  2011  2010
+2006  JIF   2011  2025
+2007  CPY   2010  2012
+2008  ADD    2012  2002
+2009  CPYI  2012  2013
+2010  CPY   2013  2014
+2011  SUBI  2014  2001
+2012  JIF   2014  2020
+2013  ADD    2010  1
+2014  SET      0  2015
+2015  JIF   2015  2004
+2016  HLT
+2020  CPY   2010  2005
+2021  SET      0  2015
+2022  JIF   2015  2030
+2025  SET     -1  2005
+2026  SET      0  2015
+2027  JIF   2015  2030
+2030  SYSCALL YIELD
+2031  SYSCALL PRN 2005
+2032  SYSCALL HLT
+
+# Thread #3 code (3000..3012)
+3000  CPY   3000  3003
+3001  CPY   3001  3004
+3002  CPY   3003  3005
+3003  SUBI  3005  3004
+3004  JIF   3005  3010
+3005  SET     42  3006
+3006  SYSCALL PRN 3006
+3007  ADD   3004   1
+3008  SET      0  3009
+3009  JIF   3009  3002
+3010  SYSCALL YIELD
+3011  SYSCALL PRN 3006
+3012  SYSCALL HLT
+
+4000  SYSCALL HLT
+5000  SYSCALL HLT
+6000  SYSCALL HLT
+7000  SYSCALL HLT
+8000  SYSCALL HLT
+9000  SYSCALL HLT
+10000 SYSCALL HLT
+
+End Instruction Section
